@@ -1,0 +1,133 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.:]+$');
+    }
+
+    // 2. Users and Community Users
+    // Cost-optimized: no unbounded cross-collection lookups in list operations
+    match /users/{userId} {
+      allow get: if true;
+      allow list: if true;
+      allow create, update: if true;
+      allow delete: if isSignedIn();
+    }
+
+    match /community_users/{userId} {
+      allow get: if true;
+      allow list: if true;
+      allow create, update: if true;
+      allow delete: if isSignedIn();
+    }
+
+    // 3. Channels & Community Channels
+    match /channels/{channelId} {
+      allow get, list: if true;
+      allow create, update: if true;
+      allow delete: if isSignedIn();
+
+      match /messages/{messageId} {
+        allow get, list: if true;
+        allow create, update: if true;
+        allow delete: if isSignedIn();
+      }
+    }
+
+    match /community_channels/{channelId} {
+      allow get, list: if true;
+      allow create, update: if true;
+      allow delete: if isSignedIn();
+    }
+
+    // 4. Flat Chat Messages (Used by client and Android)
+    match /chat_messages/{messageId} {
+      allow get, list: if true;
+      allow create: if true;
+      allow update, delete: if true;
+    }
+
+    // 5. Direct Private Messages & Conversations
+    match /private_messages/{messageId} {
+      allow get, list: if true;
+      allow create, update: if true;
+      allow delete: if isSignedIn();
+    }
+
+    match /private_conversations/{pairKey} {
+      allow get, list: if true;
+      allow write: if true;
+
+      match /messages/{messageId} {
+        allow get, list: if true;
+        allow create, update: if true;
+        allow delete: if isSignedIn();
+      }
+    }
+
+    // 6. User Challenges & 150 Milestone Stations
+    match /challenges/{challengeId} {
+      allow get, list: if true;
+      allow create, update: if true;
+      allow delete: if isSignedIn();
+
+      match /trades/{tradeId} {
+        allow get, list: if true;
+        allow create, update: if true;
+        allow delete: if isSignedIn();
+      }
+    }
+
+    match /user_challenges/{userId} {
+      allow get, list: if true;
+      allow create, update: if true;
+      allow delete: if isSignedIn();
+    }
+
+    // 7. App Updates (Public read, admin write)
+    match /app_updates/{docId} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+
+    // 8. Notifications and FCM Tokens
+    match /community_notifications/{docId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
+    }
+
+    match /notifications/{docId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
+    }
+
+    // 9. Files Metadata
+    match /files/{fileId} {
+      allow get, list: if true;
+      allow create, update: if true;
+      allow delete: if isSignedIn();
+    }
+
+    // 10. System Health Ping
+    match /_system_health/{docId} {
+      allow read, write: if true;
+    }
+
+    // 11. User Warnings
+    match /user_warnings/{warningId} {
+      allow get, list: if true;
+      allow create, update: if true;
+      allow delete: if isSignedIn();
+    }
+  }
+}
